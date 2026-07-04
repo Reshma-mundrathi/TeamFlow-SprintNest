@@ -1,0 +1,26 @@
+{
+  "name": "sprintnest-workspace",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "start:db": "docker compose up -d",
+    "stop:db": "docker compose down",
+    "backend:install": "npm --prefix backend install",
+    "frontend:install": "npm --prefix frontend install",
+    "install:all": "npm install && npm run backend:install && npm run frontend:install",
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "puppeteer": "^25.3.0"
+  }
+}

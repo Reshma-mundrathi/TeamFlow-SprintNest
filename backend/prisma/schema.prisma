@@ -1,0 +1,184 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  password        String
+  name            String
+  roleId          Int
+  role            Role             @relation(fields: [roleId], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  memberships     ProjectMember[]
+  managedProjects Project[]
+  assignedTasks   Task[]           @relation("TaskAssignee")
+  comments        Comment[]
+  attachments     Attachment[]
+  notifications   Notification[]
+  incidents       IncidentReport[]
+  activities      ActivityLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String           @id @default(uuid())
+  name        String
+  description String?
+  themeColor  String           @default("#3b82f6")
+  dueDate     DateTime?
+  managerId   String
+  manager     User             @relation(fields: [managerId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  members     ProjectMember[]
+  tasks       Task[]
+  incidents   IncidentReport[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model Task {
+  id           String           @id @default(uuid())
+  title        String
+  description  String?
+  priority     String           // LOW, MEDIUM, HIGH
+  status       String           // TODO, IN_PROGRESS, REVIEW, DONE
+  dueDate      DateTime?
+  projectId    String
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId   String?
+  assignee     User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  parentId     String?
+  parent       Task?            @relation("SubTasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subTasks     Task[]           @relation("SubTasks")
+  comments     Comment[]
+  attachments  Attachment[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  dependencies TaskDependency[] @relation("BlockedTask")
+  blocking     TaskDependency[] @relation("BlockingTask")
+
+  @@map("tasks")
+}
+
+model TaskDependency {
+  id             String @id @default(uuid())
+  blockedTaskId  String
+  blockedTask    Task   @relation("BlockedTask", fields: [blockedTaskId], references: [id], onDelete: Cascade)
+  blockingTaskId String
+  blockingTask   Task   @relation("BlockingTask", fields: [blockingTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([blockedTaskId, blockingTaskId])
+  @@map("task_dependencies")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@map("comments")
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  filename     String
+  path         String
+  mimeType     String
+  size         Int
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@map("attachments")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model IncidentReport {
+  id          String            @id @default(uuid())
+  title       String
+  severity    String            // LOW, MEDIUM, HIGH, CRITICAL
+  status      String            // DRAFT, SUBMITTED, APPROVED, CLOSED
+  timeline    String?
+  rootCause   String?
+  resolution  String?
+  prevention  String?
+  projectId   String
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporterId  String
+  reporter    User              @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  sections    IncidentSection[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("incident_reports")
+}
+
+model IncidentSection {
+  id       String         @id @default(uuid())
+  reportId String
+  report   IncidentReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  title    String
+  content  String
+  order    Int
+
+  @@map("incident_sections")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}
